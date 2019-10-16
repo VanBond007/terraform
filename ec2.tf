@@ -18,7 +18,7 @@ resource "aws_instance" "ansible" {
       type = "ssh"
       host = self.public_ip
       user = var.username
-      private_key = file("workshop.pem")
+      private_key = file(local.private_key)
     }
   }
   provisioner "remote-exec" {
@@ -29,7 +29,7 @@ resource "aws_instance" "ansible" {
       type = "ssh"
       host = self.public_ip
       user = var.username
-      private_key = file("workshop.pem")
+      private_key = file(local.private_key)
     }
   }
 }
@@ -51,11 +51,22 @@ resource "aws_instance" "managed_node" {
       type = "ssh"
       host = self.public_ip
       user = var.username
-      private_key = file("workshop.pem")
+      private_key = file(local.private_key)
     }
   }
 }
 
 resource "tls_private_key" "ansible" {
   algorithm = "RSA"
+}
+
+locals {
+  private_key = join(".",[var.key_name,"pem"])
+  inventory   = "/tmp/inventory"
+}
+
+resource "local_file" "ansible_private_key" {
+  sensitive_content  = tls_private_key.ansible.private_key_pem
+  filename           = ".ssh/ansible.pem"
+  file_permission    = "0400"
 }
