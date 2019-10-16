@@ -3,6 +3,8 @@
   hosts: localhost
   connection: local
   gather_facts: no
+  vars_files:
+    - tower.yml
   tasks:
   - name: Run terraform
     terraform:
@@ -19,5 +21,74 @@
   - name: Display Ansible inventory location
     debug:
       msg: "Ansible inventory was copied to ansible node control node at: {{tf.outputs.ansible_inventory.value}}"
+    when: state == "present"
+
+  - name: Create Ansible Tower inventory
+    tower_inventory:
+      name: AlekseyUsov_Inventory
+      organization: Student02
+      tower_host: "{{tower_host}}"
+      tower_username: "{{tower_username}}"
+      tower_password: "{{tower_password}}"
+      tower_verify_ssl: no
+      state: "{{state}}"
+
+  - name: Add ansible control node to Ansible Tower inventory
+    tower_host:
+      name: "ansible"
+      inventory: Student02
+      tower_host: "{{tower_host}}"
+      tower_username: "{{tower_username}}"
+      tower_password: "{{tower_password}}"
+      tower_verify_ssl: no
+      variables:
+        ansible_host: "{{tf.outputs.ansible_control_node_ip.value}}"
+    when: state == "present"
+
+  - name: Create Ansible Tower project
+    tower_project:
+      name: AlekseyUsov_Inventory
+      organization: Student02
+      scm_type: git
+      scm_update_on_launch: yes
+      scm_clean: yes
+      scm_url: https://github.com/VanBond007/terraform.git
+      tower_host: "{{tower_host}}"
+      tower_username: "{{tower_username}}"
+      tower_password: "{{tower_password}}"
+      tower_verify_ssl: no
+      state: "{{state}}"
+
+  - name: Give project SCM update some time to finish
+    pause:
+      seconds: 30
+    when: state == "present"
+
+  - name: Create Ansible Tower job template
+    tower_job_template:
+      become_enabled: yes
+      credential: workshop-aws-ssh
+      vault_credential: redhat
+      inventory: Student02
+      job_type: run
+      name: AlekseyUsov_Inventory
+      playbook: register.yml
+      project: <name_from_previous_task>
+      tower_host: "{{tower_host}}"
+      tower_username: "{{tower_username}}"
+      tower_password: "{{tower_password}}"
+      tower_verify_ssl: no
+    when: state == "present"
+
+  - name: Launch job template to register provisioned nodes with Red Hat
+    tower_job_launch:
+      job_template: AlekseyUsov_Inventory
+      job_type: run
+      tower_host: "{{tower_host}}"
+      tower_username: "{{tower_username}}"
+      tower_password: "{{tower_password}}"
+      tower_verify_ssl: no
+      credential: workshop-aws-ssh
+      inventory: AlekseyUsov_Inventory
     when: state == "present"
 

@@ -32,6 +32,17 @@ resource "aws_instance" "ansible" {
       private_key = file(local.private_key)
     }
   }
+  provisioner "remote-exec" {
+    when = "destroy"
+    inline = ["sudo subscription-manager unregister"]
+    connection {
+      type = "ssh"
+      host = self.public_ip
+      user = var.username
+      private_key = file(local.private_key)
+    }
+    on_failure = "continue"
+  }
 }
 
 resource "aws_instance" "managed_node" {
@@ -78,3 +89,8 @@ output "ansible_control_node_connection_info" {
 output "ansible_inventory" {
   value = local.inventory
 }
+
+output "ansible_control_node_ip" {
+  value = aws_instance.ansible.public_ip
+}
+
